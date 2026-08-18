@@ -9,8 +9,8 @@
         enabled: true
         hostname: !!js process.env.CLOUDFLARE_TUNNEL_HOSTNAME
         localPort: 3080
-          cloudflaredPath: !!js process.env.CLOUDFLARED_PATH ?? 'cloudflared'
-          autoInstall: !!js process.env.CLOUDFLARE_AUTO_INSTALL !== 'false'
+        cloudflaredPath: !!js process.env.CLOUDFLARED_PATH ?? 'cloudflared'
+        autoInstall: !!js process.env.CLOUDFLARE_AUTO_INSTALL !== 'false'
 
 # Cloudflare forwards to a stable local HTTP origin. The server remains
 # loopback-only; it is not exposed on the LAN or internet directly.

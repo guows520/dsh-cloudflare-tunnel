@@ -1,6 +1,6 @@
 {
   "name": "dsh-cloudflare-tunnel",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Cloudflare Tunnel bundle for DeepSeek Harness Desktop remote access",
   "license": "MIT",
   "type": "module",
