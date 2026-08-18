@@ -97,7 +97,7 @@ Cloudflare 会为 `pc1.example.com` 创建关联 Tunnel 的代理 DNS 记录。�
 1. 从本 GitHub 仓库下载 Release 压缩包，或克隆仓库：
 
 ```powershell
-git clone https://github.com/<你的 GitHub 用户名>/dsh-cloudflare-tunnel.git
+git clone https://github.com/guows520/dsh-cloudflare-tunnel.git
 cd dsh-cloudflare-tunnel
 ```
 
@@ -132,20 +132,15 @@ https://pc1.example.com
 
 ### 方式二：通过 DSH 命令行安装
 
-此方式适合已安装 Node.js 和 pnpm，并且能运行 DSH 的 `dsh plugin` 命令的用户。发布仓库后，将以下命令中的 GitHub 用户名替换为实际值：
+此方式适合已安装 Node.js 和 pnpm，并且能运行 DSH 的 `dsh plugin` 命令的用户：
 
 ```powershell
-dsh plugin --profile web add github:<你的 GitHub 用户名>/dsh-cloudflare-tunnel
+dsh plugin --profile web add github:guows520/dsh-cloudflare-tunnel
 ```
 
-然后手动编辑 `%USERPROFILE%\.dsh\.env`：
+安装后，在 DeepSeek Harness Desktop 的插件设置界面中配置 `hostname`、`localPort` 和 `cloudflaredPath`，无需手动编辑 `.env` 文件。修改配置后重启桌面应用即可生效。
 
-```dotenv
-CLOUDFLARE_TUNNEL_HOSTNAME=pc1.example.com
-CLOUDFLARED_PATH=C:\Users\Alice\cloudflared\cloudflared.exe
-```
-
-并编辑 `%USERPROFILE%\.dsh\.credentials.yaml`：
+Tunnel token 属于机密凭据，不会出现在插件设置界面中，仍需手动写入 `%USERPROFILE%\.dsh\.credentials.yaml`：
 
 ```yaml
 CLOUDFLARE_TUNNEL_TOKEN: '粘贴 Cloudflare Tunnel token'
