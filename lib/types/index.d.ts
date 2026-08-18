@@ -42,4 +42,6 @@ export declare const Config: z<Config>;
  * @returns a disposer that terminates the tunnel process and awaits its exit.
  */
 export declare function apply(ctx: Context, config: Config): Promise<() => Promise<void>>;
+/** Create a commented `.env` template on first run without blocking startup. */
+declare function ensureEnvFile(ctx: Context): Promise<void>;
 //# sourceMappingURL=index.d.ts.map

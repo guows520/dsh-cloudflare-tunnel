@@ -19,10 +19,15 @@ export const CLOUDFLARED_DOWNLOAD_URL = `https://github.com/cloudflare/cloudflar
 
 /** Absolute path of the plugin-managed cloudflared copy under `$DSH_HOME/bin`. */
 export function managedCloudflaredPath(env: NodeJS.ProcessEnv = process.env): string {
-  const configured = env.DSH_HOME?.trim()
-  const home = configured && configured.length > 0 ? configured : join(homedir(), '.dsh')
+  const home = dshHomePath(env)
   const binary = process.platform === 'win32' ? 'cloudflared.exe' : 'cloudflared'
   return join(home, 'bin', binary)
+}
+
+/** Resolve `$DSH_HOME`, falling back to `~/.dsh` like the DSH host. */
+export function dshHomePath(env: NodeJS.ProcessEnv = process.env): string {
+  const configured = env.DSH_HOME?.trim()
+  return configured && configured.length > 0 ? configured : join(homedir(), '.dsh')
 }
 
 /** Stream a file's SHA-256 without loading it whole. */

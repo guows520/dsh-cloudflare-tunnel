@@ -3,11 +3,12 @@
  * credentials services are mocked because cloudflared is not available in CI.
  */
 
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { apply, Config, name, inject, TOKEN_CREDENTIAL_REF } from '../src/index.ts'
 import type { SubprocessSpawnSpec } from '@deepseek-ai/dsh-subprocess'
 import * as installer from '../src/installer.ts'
 import { CLOUDFLARED_SHA256, CLOUDFLARED_VERSION, managedCloudflaredPath } from '../src/installer.ts'
+import { envFilePath } from '../src/env.ts'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -46,6 +47,20 @@ function mockCtx(overrides: {
 }
 
 const BASE_CONFIG: Config = { enabled: true, hostname: 'desktop.example.com', localPort: 3080, cloudflaredPath: 'cloudflared', autoInstall: true }
+
+const previousDshHome = process.env.DSH_HOME
+let envHome = ''
+
+beforeEach(async () => {
+  envHome = await mkdtemp(join(tmpdir(), 'dsh-tunnel-env-'))
+  process.env.DSH_HOME = envHome
+})
+
+afterEach(async () => {
+  if (previousDshHome === undefined) delete process.env.DSH_HOME
+  else process.env.DSH_HOME = previousDshHome
+  await rm(envHome, { recursive: true, force: true })
+})
 
 describe('cloudflare-tunnel plugin metadata', () => {
   it('declares the expected name and injections', () => {
@@ -158,6 +173,51 @@ describe('cloudflare-tunnel apply', () => {
       + 'Set CLOUDFLARE_TUNNEL_HOSTNAME in your .dsh/.env file, then restart.',
     )
     expect(ctx.subprocess.spawn).not.toHaveBeenCalled()
+    await dispose()
+  })
+
+  it('creates a commented .env template when the file is missing', async () => {
+    const { ctx } = mockCtx()
+    const dispose = await apply(ctx as never, { ...BASE_CONFIG, hostname: undefined as unknown as string })
+    const contents = await readFile(envFilePath(), 'utf8')
+
+    expect(contents).toContain('# 示例：CLOUDFLARE_TUNNEL_HOSTNAME=pc1.example.com')
+    expect(contents).toContain('# 示例：CLOUDFLARED_PATH=C:\\Users\\Alice\\cloudflared\\cloudflared.exe')
+    expect(contents).toContain('# 示例：CLOUDFLARE_AUTO_INSTALL=false')
+    expect(contents).toContain('Tunnel token 请写入同目录的 .credentials.yaml')
+    expect(contents).not.toMatch(/^CLOUDFLARE_[A-Z_]+=.*$/m)
+    expect(ctx.logger.info).toHaveBeenCalledWith(
+      'cloudflare-tunnel: created commented configuration template at %s',
+      envFilePath(),
+    )
+    await dispose()
+  })
+
+  it('does not modify an existing .env file', async () => {
+    await writeFile(envFilePath(), 'CLOUDFLARE_TUNNEL_HOSTNAME=existing.example.com\n', 'utf8')
+    const { ctx } = mockCtx()
+    const dispose = await apply(ctx as never, BASE_CONFIG)
+
+    await expect(readFile(envFilePath(), 'utf8')).resolves.toBe('CLOUDFLARE_TUNNEL_HOSTNAME=existing.example.com\n')
+    expect(ctx.logger.info).not.toHaveBeenCalledWith(
+      'cloudflare-tunnel: created commented configuration template at %s',
+      envFilePath(),
+    )
+    await dispose()
+  })
+
+  it('continues startup when the .env template cannot be created', async () => {
+    const blocker = join(envHome, 'not-a-directory')
+    await writeFile(blocker, 'blocker', 'utf8')
+    process.env.DSH_HOME = blocker
+    const { ctx } = mockCtx()
+    const dispose = await apply(ctx as never, BASE_CONFIG)
+
+    expect(ctx.logger.warn).toHaveBeenCalledWith(
+      'cloudflare-tunnel: could not create the .env configuration template: %s',
+      expect.stringContaining('EEXIST'),
+    )
+    expect(ctx.subprocess.spawn).toHaveBeenCalledOnce()
     await dispose()
   })
 

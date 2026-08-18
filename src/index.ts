@@ -13,6 +13,7 @@ import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type { SubprocessOutcome } from '@deepseek-ai/dsh-subprocess'
 import '@deepseek-ai/dsh-subprocess'
 import { CLOUDFLARED_VERSION, ensureManagedCloudflared, managedCloudflaredPath } from './installer.ts'
+import { ensureEnvTemplate, envFilePath } from './env.ts'
 
 /** Cordis plugin name used by loader diagnostics. */
 export const name = 'cloudflare-tunnel'
@@ -126,6 +127,7 @@ export async function apply(ctx: Context, config: Config): Promise<() => Promise
   if (!config.enabled) {
     return () => Promise.resolve()
   }
+  await ensureEnvFile(ctx)
   // A missing hostname means this device was never configured; skip like an
   // unconfigured token instead of failing the whole DSH boot.
   if (typeof config.hostname !== 'string' || config.hostname.length === 0) {
@@ -183,5 +185,20 @@ export async function apply(ctx: Context, config: Config): Promise<() => Promise
     // Stop the published state first, then terminate and reach quiescence.
     handle.terminate()
     await handle.waitForExit()
+  }
+}
+
+/** Create a commented `.env` template on first run without blocking startup. */
+async function ensureEnvFile(ctx: Context): Promise<void> {
+  try {
+    const result = await ensureEnvTemplate()
+    if (result === 'created') {
+      ctx.logger.info('cloudflare-tunnel: created commented configuration template at %s', envFilePath())
+    }
+  } catch (error) {
+    ctx.logger.warn(
+      'cloudflare-tunnel: could not create the .env configuration template: %s',
+      String(error),
+    )
   }
 }

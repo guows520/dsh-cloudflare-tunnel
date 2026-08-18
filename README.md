@@ -160,6 +160,8 @@ dsh plugin --profile web add github:guows520/dsh-cloudflare-tunnel
 
 注意：当前桌面版的“插件配置”页只为内置插件提供配置卡片，第三方 bundle 无法在那里注册设置卡片，这是官方目前的限制（`@deepseek-ai/dsh-client-ui-settings-plugins` 的 README 明确说明：配置是否暴露给浏览器由 Host 的 api-proxy 允许列表决定，官方仓库之外的插件无法把自己的配置暴露到该页面）。因此方式二安装后仍需手动写配置到 `%USERPROFILE%\.dsh\.env`：
 
+v0.2.1 起，首次启动安装了本插件的 DSH 时，如果 `%USERPROFILE%\.dsh\.env` 不存在，插件会自动创建一份全部注释掉的模板，并在其中写明每个配置项的作用、示例值以及 token 的正确存放位置。已有 `.env` 不会被修改。自动创建只影响文件本身；由于 DSH 读取环境变量发生在启动早期，创建或修改后都需要重启 DSH 才会生效。
+
 ```env
 CLOUDFLARE_TUNNEL_HOSTNAME=pc1.example.com
 CLOUDFLARED_PATH=C:\Users\Alice\cloudflared\cloudflared.exe

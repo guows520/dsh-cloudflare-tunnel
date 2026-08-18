@@ -12,6 +12,8 @@ export declare const CLOUDFLARED_SHA256 = "c29eee2b121f5436a642eed69fd9767da7e7b
 export declare const CLOUDFLARED_DOWNLOAD_URL: string;
 /** Absolute path of the plugin-managed cloudflared copy under `$DSH_HOME/bin`. */
 export declare function managedCloudflaredPath(env?: NodeJS.ProcessEnv): string;
+/** Resolve `$DSH_HOME`, falling back to `~/.dsh` like the DSH host. */
+export declare function dshHomePath(env?: NodeJS.ProcessEnv): string;
 /** Stream a file's SHA-256 without loading it whole. */
 export declare function sha256File(path: string): Promise<string>;
 /**
