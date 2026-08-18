@@ -96,7 +96,7 @@ describe('cloudflare-tunnel apply', () => {
     const dispose = await apply(ctx as never, { ...BASE_CONFIG, hostname: undefined as unknown as string })
     expect(ctx.logger.warn).toHaveBeenCalledWith(
       'cloudflare-tunnel: hostname is not configured; tunnel not started. '
-      + 'Set CLOUDFLARE_TUNNEL_HOSTNAME in your .dsh/.env file or in the plugin settings, then restart.',
+      + 'Set CLOUDFLARE_TUNNEL_HOSTNAME in your .dsh/.env file, then restart.',
     )
     expect(ctx.subprocess.spawn).not.toHaveBeenCalled()
     await dispose()

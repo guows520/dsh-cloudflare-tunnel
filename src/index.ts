@@ -82,7 +82,7 @@ export async function apply(ctx: Context, config: Config): Promise<() => Promise
   if (typeof config.hostname !== 'string' || config.hostname.length === 0) {
     ctx.logger.warn(
       'cloudflare-tunnel: hostname is not configured; tunnel not started. '
-      + 'Set CLOUDFLARE_TUNNEL_HOSTNAME in your .dsh/.env file or in the plugin settings, then restart.',
+      + 'Set CLOUDFLARE_TUNNEL_HOSTNAME in your .dsh/.env file, then restart.',
     )
     return () => Promise.resolve()
   }

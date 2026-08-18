@@ -138,11 +138,18 @@ https://pc1.example.com
 dsh plugin --profile web add github:guows520/dsh-cloudflare-tunnel
 ```
 
-安装后，在 DeepSeek Harness Desktop 的插件设置界面中配置 `hostname`、`localPort` 和 `cloudflaredPath`，无需手动编辑 `.env` 文件。修改配置后重启桌面应用即可生效。
+注意：当前桌面版的“插件配置”页只为内置插件提供配置卡片，第三方 bundle 无法在那里注册设置卡片，这是官方目前的限制（`@deepseek-ai/dsh-client-ui-settings-plugins` 的 README 明确说明：配置是否暴露给浏览器由 Host 的 api-proxy 允许列表决定，官方仓库之外的插件无法把自己的配置暴露到该页面）。因此方式二安装后仍需手动写配置到 `%USERPROFILE%\.dsh\.env`：
+
+```env
+CLOUDFLARE_TUNNEL_HOSTNAME=pc1.example.com
+CLOUDFLARED_PATH=C:\Users\Alice\cloudflared\cloudflared.exe
+```
+
+`cloudflared` 已加入 `PATH` 时可省略 `CLOUDFLARED_PATH`。“插件列表”页只用于确认插件挂载状态，不能在其中配置参数。修改配置后重启桌面应用即可生效。
 
 如果安装后还没有配置 hostname，插件会在启动时记录一条 `hostname is not configured` 警告并跳过 Tunnel，本地功能不受影响；配置完成并重启后 Tunnel 才会启动。
 
-Tunnel token 属于机密凭据，不会出现在插件设置界面中，仍需手动写入 `%USERPROFILE%\.dsh\.credentials.yaml`：
+Tunnel token 属于机密凭据，桌面应用界面无法配置，仍需手动写入 `%USERPROFILE%\.dsh\.credentials.yaml`：
 
 ```yaml
 CLOUDFLARE_TUNNEL_TOKEN: '粘贴 Cloudflare Tunnel token'
@@ -181,7 +188,7 @@ Get-Process cloudflared
 | 浏览器显示 `ERR_CONNECTION_CLOSED` | 在 Cloudflare DNS 中确认该 hostname 的 Public Hostname 已保存。公共 DNS 不应返回 NXDOMAIN。若本机使用 Clash fake-IP，请用手机移动数据验证。 |
 | DSH 启动失败，提示端口占用 | 运行 `Get-NetTCPConnection -State Listen | Where-Object LocalPort -eq 3080` 找到占用进程；关闭它或关闭另一份 DSH。 |
 | 提示找不到 cloudflared | 运行 `cloudflared --version`。若未加入 PATH，重新运行安装脚本并传入 `-CloudflaredPath`。 |
-| 插件没有启动 Tunnel | 日志出现 `hostname is not configured` 时，在 `.env` 设置 `CLOUDFLARE_TUNNEL_HOSTNAME` 或在插件设置界面填写 hostname；否则检查 `.credentials.yaml` 是否包含非空 `CLOUDFLARE_TUNNEL_TOKEN`。改完重启 DSH。 |
+| 插件没有启动 Tunnel | 日志出现 `hostname is not configured` 时，在 `.env` 设置 `CLOUDFLARE_TUNNEL_HOSTNAME`；否则检查 `.credentials.yaml` 是否包含非空 `CLOUDFLARE_TUNNEL_TOKEN`。改完重启 DSH。 |
 | Cloudflare 域名返回 NXDOMAIN | Public Hostname 尚未创建、域名未托管到 Cloudflare，或记录尚未生效。回到 Tunnel 的 `Public Hostnames` 检查 hostname。 |
 
 ## 更新与卸载
