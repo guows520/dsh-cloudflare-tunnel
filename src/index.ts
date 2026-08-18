@@ -33,7 +33,7 @@ const HOSTNAME_PATTERN = /^(?!-)[a-z0-9-]{1,63}(?<!-)(\.[a-z0-9](?:[a-z0-9-]{0,6
 export interface Config {
   /** Whether the tunnel starts; remote access is opt-in. */
   enabled: boolean
-  /** Device-specific public hostname the tunnel serves. */
+  /** Device-specific public hostname; may be absent until configured. */
   hostname: string
   /** Local TCP port the tunnel forwards to. */
   localPort: number
@@ -54,11 +54,8 @@ const TERMINATE_GRACE_MS = 5_000
 /** Retained stderr tail for unexpected-exit diagnostics. */
 const STDERR_COLLECT_BYTES = 4_096
 
-/** Validate a hostname as a plausible FQDN for the tunnel route. */
+/** Validate a non-empty hostname as a plausible FQDN for the tunnel route. */
 function assertValidHostname(hostname: string): void {
-  if (hostname.length === 0) {
-    throw new TypeError('cloudflare-tunnel: hostname is required when the tunnel is enabled')
-  }
   if (/\s/.test(hostname)) {
     throw new TypeError(`cloudflare-tunnel: hostname "${hostname}" must not contain whitespace`)
   }
@@ -69,15 +66,24 @@ function assertValidHostname(hostname: string): void {
 
 /**
  * Start the tunnel for this fiber's lifetime when enabled.
- * Failure modes: a missing cloudflared binary or invalid hostname throws
- * (plugin load fails loud); an unconfigured token warns and skips the spawn
- * so the host keeps running without remote access.
- * @param ctx - plugin context owning the subprocess and effects.
+ * Failure modes: a missing cloudflared binary or a malformed hostname throws
+ * (plugin load fails loud); an unconfigured hostname or token warns and skips
+ * the spawn so the host keeps running without remote access.
+* @param ctx - plugin context owning the subprocess and effects.
  * @param config - resolved tunnel configuration.
  * @returns a disposer that terminates the tunnel process and awaits its exit.
  */
 export async function apply(ctx: Context, config: Config): Promise<() => Promise<void>> {
   if (!config.enabled) {
+    return () => Promise.resolve()
+  }
+  // A missing hostname means this device was never configured; skip like an
+  // unconfigured token instead of failing the whole DSH boot.
+  if (typeof config.hostname !== 'string' || config.hostname.length === 0) {
+    ctx.logger.warn(
+      'cloudflare-tunnel: hostname is not configured; tunnel not started. '
+      + 'Set CLOUDFLARE_TUNNEL_HOSTNAME in your .dsh/.env file or in the plugin settings, then restart.',
+    )
     return () => Promise.resolve()
   }
   assertValidHostname(config.hostname)

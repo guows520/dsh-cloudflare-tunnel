@@ -91,6 +91,17 @@ describe('cloudflare-tunnel apply', () => {
     await dispose()
   })
 
+  it('warns and skips spawn when the hostname is not configured', async () => {
+    const { ctx } = mockCtx()
+    const dispose = await apply(ctx as never, { ...BASE_CONFIG, hostname: undefined as unknown as string })
+    expect(ctx.logger.warn).toHaveBeenCalledWith(
+      'cloudflare-tunnel: hostname is not configured; tunnel not started. '
+      + 'Set CLOUDFLARE_TUNNEL_HOSTNAME in your .dsh/.env file or in the plugin settings, then restart.',
+    )
+    expect(ctx.subprocess.spawn).not.toHaveBeenCalled()
+    await dispose()
+  })
+
   it('rejects hostnames containing whitespace', async () => {
     const { ctx } = mockCtx()
     await expect(apply(ctx as never, { ...BASE_CONFIG, hostname: 'bad host' }))
