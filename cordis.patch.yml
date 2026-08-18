@@ -1,0 +1,25 @@
+# Installing this package into the DSH Web profile applies this bundle after
+# dsh-web-app. The hostname and optional executable path come from
+# $DSH_HOME/.env. The token is resolved from $DSH_HOME/.credentials.yaml.
+
+- insert:
+    - id: cloudflare-tunnel
+      name: dsh-cloudflare-tunnel
+      config:
+        enabled: true
+        hostname: !!js process.env.CLOUDFLARE_TUNNEL_HOSTNAME
+        localPort: 3080
+        cloudflaredPath: !!js process.env.CLOUDFLARED_PATH ?? 'cloudflared'
+
+# Cloudflare forwards to a stable local HTTP origin. The server remains
+# loopback-only; it is not exposed on the LAN or internet directly.
+- id: webserver
+  config:
+    host: 127.0.0.1
+    port: 3080
+
+# The public hostname is trusted for the application API. DSH keeps settings
+# and credential methods restricted to loopback requests.
+- id: connection
+  config:
+    trustedHosts: !!js "[...ctx.webRuntime.trustedHosts, process.env.CLOUDFLARE_TUNNEL_HOSTNAME].filter(Boolean)"
