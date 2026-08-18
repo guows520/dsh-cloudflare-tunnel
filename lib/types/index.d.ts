@@ -25,14 +25,18 @@ export interface Config {
     localPort: number;
     /** Absolute cloudflared path or bare PATH name. */
     cloudflaredPath: string;
+    /** Download the pinned cloudflared into $DSH_HOME/bin when not on PATH. */
+    autoInstall: boolean;
 }
 /** Schemastery validation for {@link Config}. */
 export declare const Config: z<Config>;
 /**
  * Start the tunnel for this fiber's lifetime when enabled.
- * Failure modes: a missing cloudflared binary or invalid hostname throws
- * (plugin load fails loud); an unconfigured token warns and skips the spawn
- * so the host keeps running without remote access.
+ * Failure modes: a malformed hostname throws (plugin load fails loud); an
+ * unresolvable cloudflared binary either auto-installs the pinned release
+ * into `$DSH_HOME/bin` (default) or throws when `autoInstall` is off or a
+ * custom path was configured; an unconfigured hostname or token warns and
+ * skips the spawn so the host keeps running without remote access.
  * @param ctx - plugin context owning the subprocess and effects.
  * @param config - resolved tunnel configuration.
  * @returns a disposer that terminates the tunnel process and awaits its exit.

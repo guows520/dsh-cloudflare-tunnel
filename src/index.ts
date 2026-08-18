@@ -12,6 +12,7 @@ import z from '@deepseek-ai/schemastery'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type { SubprocessOutcome } from '@deepseek-ai/dsh-subprocess'
 import '@deepseek-ai/dsh-subprocess'
+import { CLOUDFLARED_VERSION, ensureManagedCloudflared, managedCloudflaredPath } from './installer.ts'
 
 /** Cordis plugin name used by loader diagnostics. */
 export const name = 'cloudflare-tunnel'
@@ -39,6 +40,8 @@ export interface Config {
   localPort: number
   /** Absolute cloudflared path or bare PATH name. */
   cloudflaredPath: string
+  /** Download the pinned cloudflared into $DSH_HOME/bin when not on PATH. */
+  autoInstall: boolean
 }
 
 /** Schemastery validation for {@link Config}. */
@@ -47,6 +50,7 @@ export const Config: z<Config> = z.object({
   hostname: z.string(),
   localPort: z.number().min(1).max(65535).default(3080),
   cloudflaredPath: z.string().default('cloudflared'),
+  autoInstall: z.boolean().default(true),
 })
 
 /** Grace period for the terminate escalation on the tunnel process. */
@@ -65,11 +69,56 @@ function assertValidHostname(hostname: string): void {
 }
 
 /**
+ * Bare PATH name used as the config default; auto-install applies only to it.
+ */
+const DEFAULT_CLOUDFLARED_PATH = 'cloudflared'
+
+/**
+ * Resolve the cloudflared executable. The configured value wins (PATH name or
+ * absolute path); when only the default bare name is configured and it is not
+ * on PATH, the pinned release is installed into `$DSH_HOME/bin` on first use
+ * unless `autoInstall` is disabled.
+ */
+async function resolveCloudflaredExecutable(ctx: Context, config: Config): Promise<string> {
+  try {
+    return await ctx.subprocess.resolveExecutable(config.cloudflaredPath)
+  } catch (error) {
+    const explicit = config.cloudflaredPath !== DEFAULT_CLOUDFLARED_PATH
+    if (explicit || !config.autoInstall) {
+      throw new Error(
+        `cloudflare-tunnel: cannot find the cloudflared executable "${config.cloudflaredPath}". `
+        + 'Install cloudflared (https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) '
+        + 'or set cloudflaredPath to its absolute path.',
+        { cause: error },
+      )
+    }
+  }
+  const target = managedCloudflaredPath()
+  ctx.logger.info(
+    'cloudflare-tunnel: cloudflared not found on PATH; installing %s to %s',
+    CLOUDFLARED_VERSION,
+    target,
+  )
+  try {
+    return await ensureManagedCloudflared()
+  } catch (error) {
+    throw new Error(
+      `cloudflare-tunnel: automatic cloudflared installation to "${target}" failed: ${String(error)}. `
+      + 'Install cloudflared (https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) '
+      + 'or set cloudflaredPath to its absolute path.',
+      { cause: error },
+    )
+  }
+}
+
+/**
  * Start the tunnel for this fiber's lifetime when enabled.
- * Failure modes: a missing cloudflared binary or a malformed hostname throws
- * (plugin load fails loud); an unconfigured hostname or token warns and skips
- * the spawn so the host keeps running without remote access.
-* @param ctx - plugin context owning the subprocess and effects.
+ * Failure modes: a malformed hostname throws (plugin load fails loud); an
+ * unresolvable cloudflared binary either auto-installs the pinned release
+ * into `$DSH_HOME/bin` (default) or throws when `autoInstall` is off or a
+ * custom path was configured; an unconfigured hostname or token warns and
+ * skips the spawn so the host keeps running without remote access.
+ * @param ctx - plugin context owning the subprocess and effects.
  * @param config - resolved tunnel configuration.
  * @returns a disposer that terminates the tunnel process and awaits its exit.
  */
@@ -97,17 +146,7 @@ export async function apply(ctx: Context, config: Config): Promise<() => Promise
     return () => Promise.resolve()
   }
 
-  let executable: string
-  try {
-    executable = await ctx.subprocess.resolveExecutable(config.cloudflaredPath)
-  } catch (error) {
-    throw new Error(
-      `cloudflare-tunnel: cannot find the cloudflared executable "${config.cloudflaredPath}". `
-      + 'Install cloudflared (https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) '
-      + 'or set cloudflaredPath to its absolute path.',
-      { cause: error },
-    )
-  }
+    const executable = await resolveCloudflaredExecutable(ctx, config)
 
   // The token travels on the command line: ctx.subprocess scrubs
   // credential-shaped environment names, and cloudflared accepts no stdin

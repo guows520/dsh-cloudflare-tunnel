@@ -31,7 +31,9 @@ DeepSeek Harness Desktop
 1. 已安装并至少启动过一次 DeepSeek Harness Desktop。
 2. 拥有一个已托管到 Cloudflare 的域名。域名的权威 DNS 必须使用 Cloudflare nameserver。
 3. 拥有 Cloudflare Zero Trust 的访问权限。
-4. 已安装 `cloudflared`。Windows 可以运行：
+4. （可选）已安装 `cloudflared`。v0.2.0 起插件会自动检测 `PATH` 中的 `cloudflared`，未检测到时自动下载固定版本安装到 `%USERPROFILE%\.dsh\bin\`，见下文“cloudflared 自动安装”。
+
+如果想手动安装，Windows 可以运行：
 
 ```powershell
 winget install --id Cloudflare.cloudflared
@@ -43,7 +45,25 @@ winget install --id Cloudflare.cloudflared
 cloudflared --version
 ```
 
-如果不把 `cloudflared.exe` 加入 `PATH`，请记住它的绝对路径，例如 `C:\Users\Alice\cloudflared\cloudflared.exe`。
+如果既不想把 `cloudflared.exe` 加入 `PATH`，也不想让插件自动安装，请记住它的绝对路径，例如 `C:\Users\Alice\cloudflared\cloudflared.exe`，并配置为 `CLOUDFLARED_PATH`。
+
+### cloudflared 自动安装
+
+插件启动 Tunnel 时按以下顺序解析 `cloudflared` 可执行文件：
+
+1. `CLOUDFLARED_PATH` 指定的绝对路径或命令名。显式指定的路径不会触发自动安装。
+2. `PATH` 中的 `cloudflared`。
+3. `%USERPROFILE%\.dsh\bin\cloudflared.exe` 自动管理副本；不存在时自动下载。
+
+自动安装会从 Cloudflare 官方 GitHub Releases 下载固定版本 `2026.8.2`（`cloudflared-windows-amd64.exe`），校验 SHA-256（完整校验和见 `src/installer.ts`）通过后才落盘到 `%USERPROFILE%\.dsh\bin\cloudflared.exe`；校验失败会删除临时下载文件并报错。下载不修改系统 `PATH`，不安装系统服务，不需要管理员权限。
+
+如需禁用自动安装，在 `%USERPROFILE%\.dsh\.env` 中设置：
+
+```env
+CLOUDFLARE_AUTO_INSTALL=false
+```
+
+禁用后若找不到 `cloudflared`，插件会报错且不启动 Tunnel。
 
 ## Cloudflare 配置
 
@@ -145,7 +165,7 @@ CLOUDFLARE_TUNNEL_HOSTNAME=pc1.example.com
 CLOUDFLARED_PATH=C:\Users\Alice\cloudflared\cloudflared.exe
 ```
 
-`cloudflared` 已加入 `PATH` 时可省略 `CLOUDFLARED_PATH`。“插件列表”页只用于确认插件挂载状态，不能在其中配置参数。修改配置后重启桌面应用即可生效。
+`cloudflared` 已加入 `PATH`，或愿意让插件自动下载安装（默认行为）时，可省略 `CLOUDFLARED_PATH`。“插件列表”页只用于确认插件挂载状态，不能在其中配置参数。修改配置后重启桌面应用即可生效。
 
 如果安装后还没有配置 hostname，插件会在启动时记录一条 `hostname is not configured` 警告并跳过 Tunnel，本地功能不受影响；配置完成并重启后 Tunnel 才会启动。
 
@@ -188,6 +208,7 @@ Get-Process cloudflared
 | 浏览器显示 `ERR_CONNECTION_CLOSED` | 在 Cloudflare DNS 中确认该 hostname 的 Public Hostname 已保存。公共 DNS 不应返回 NXDOMAIN。若本机使用 Clash fake-IP，请用手机移动数据验证。 |
 | DSH 启动失败，提示端口占用 | 运行 `Get-NetTCPConnection -State Listen | Where-Object LocalPort -eq 3080` 找到占用进程；关闭它或关闭另一份 DSH。 |
 | 提示找不到 cloudflared | 运行 `cloudflared --version`。若未加入 PATH，重新运行安装脚本并传入 `-CloudflaredPath`。 |
+| 日志出现 automatic cloudflared installation ... failed | 自动下载失败。检查网络与 GitHub 连通性，恢复后重启 DSH 重试；或手动下载 `cloudflared.exe` 并设置 `CLOUDFLARED_PATH`。同时确认 `%USERPROFILE%\.dsh\bin\` 目录可写。 |
 | 插件没有启动 Tunnel | 日志出现 `hostname is not configured` 时，在 `.env` 设置 `CLOUDFLARE_TUNNEL_HOSTNAME`；否则检查 `.credentials.yaml` 是否包含非空 `CLOUDFLARE_TUNNEL_TOKEN`。改完重启 DSH。 |
 | Cloudflare 域名返回 NXDOMAIN | Public Hostname 尚未创建、域名未托管到 Cloudflare，或记录尚未生效。回到 Tunnel 的 `Public Hostnames` 检查 hostname。 |
 
@@ -197,7 +218,7 @@ Get-Process cloudflared
 
 方式二安装的用户：直接重新运行 `dsh plugin --profile web add github:guows520/dsh-cloudflare-tunnel` 即可更新，pnpm 会重新解析 GitHub 仓库的最新提交并覆盖安装；`.env` 与 `.credentials.yaml` 里的配置不受影响。更新前关闭 DeepSeek Harness，更新后重启。
 
-卸载：关闭 DeepSeek Harness，删除 `%USERPROFILE%\.dsh\profiles\web\node_modules\dsh-cloudflare-tunnel`，然后从 `%USERPROFILE%\.dsh\profiles\web\package.json` 的 `dsh.profile.bundles` 中移除 `dsh-cloudflare-tunnel`。需要彻底清理时，再删除 `.env` 中的 `CLOUDFLARE_TUNNEL_HOSTNAME`、`CLOUDFLARED_PATH` 以及 `.credentials.yaml` 中的 `CLOUDFLARE_TUNNEL_TOKEN`。
+卸载：关闭 DeepSeek Harness，删除 `%USERPROFILE%\.dsh\profiles\web\node_modules\dsh-cloudflare-tunnel`，然后从 `%USERPROFILE%\.dsh\profiles\web\package.json` 的 `dsh.profile.bundles` 中移除 `dsh-cloudflare-tunnel`。需要彻底清理时，再删除 `.env` 中的 `CLOUDFLARE_TUNNEL_HOSTNAME`、`CLOUDFLARED_PATH`、`.credentials.yaml` 中的 `CLOUDFLARE_TUNNEL_TOKEN`，以及插件自动安装的 `%USERPROFILE%\.dsh\bin\cloudflared.exe`。
 
 ## 开发说明
 

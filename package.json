@@ -1,6 +1,6 @@
 {
   "name": "dsh-cloudflare-tunnel",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Cloudflare Tunnel bundle for DeepSeek Harness Desktop remote access",
   "license": "MIT",
   "type": "module",
@@ -20,8 +20,10 @@
   },
   "files": [
     "lib/index.js",
+    "lib/installer.js",
     "lib/invariant.js",
     "lib/types/index.d.ts",
+    "lib/types/installer.d.ts",
     "lib/types/invariant.d.ts",
     "cordis.patch.yml",
     "LICENSE",
