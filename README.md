@@ -188,6 +188,8 @@ Get-Process cloudflared
 
 更新：下载新版仓库后，从新版目录再次运行 `install-windows.ps1`。脚本会覆盖 profile 中的插件运行时文件，并保留同一份 hostname 和 token 配置。
 
+方式二安装的用户：直接重新运行 `dsh plugin --profile web add github:guows520/dsh-cloudflare-tunnel` 即可更新，pnpm 会重新解析 GitHub 仓库的最新提交并覆盖安装；`.env` 与 `.credentials.yaml` 里的配置不受影响。更新前关闭 DeepSeek Harness，更新后重启。
+
 卸载：关闭 DeepSeek Harness，删除 `%USERPROFILE%\.dsh\profiles\web\node_modules\dsh-cloudflare-tunnel`，然后从 `%USERPROFILE%\.dsh\profiles\web\package.json` 的 `dsh.profile.bundles` 中移除 `dsh-cloudflare-tunnel`。需要彻底清理时，再删除 `.env` 中的 `CLOUDFLARE_TUNNEL_HOSTNAME`、`CLOUDFLARED_PATH` 以及 `.credentials.yaml` 中的 `CLOUDFLARE_TUNNEL_TOKEN`。
 
 ## 开发说明
